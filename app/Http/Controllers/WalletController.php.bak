@@ -1,0 +1,132 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Wallet;
+use App\Http\Requests\WalletRequest;
+use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class WalletController extends Controller
+{
+    public function transfer(WalletRequest $request):JsonResponse
+    {
+        try {
+
+            $creditValue = 0;
+
+            $wallet = new Wallet();
+
+            $balance = $wallet->balance($request->input('user'));
+
+            if($request->input('type') === 'deposit') {
+                $creditValue = $balance + $request->input('amount');
+            } elseif ($request->input('type') === 'withdraw' and $balance >=  $request->input('amount')) {
+                $creditValue = $balance - $request->input('amount');
+            } elseif($request->input('type') === 'withdraw' and $balance < $request->input('amount')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'insufficient credits to withdarw',
+                    'data' => [
+                        'amount' => $request->input('amount'),
+                        'credits' => $balance,
+                        'type' => $request->input('type'),
+                        'status' => 'declined',
+                    ]
+                ], 401);
+            }
+
+//            $wallet = new Wallet();
+            $wallet->user = $request->input('user');
+            $wallet->amount = $request->input('amount');
+            $wallet->credits = $creditValue;
+            $wallet->type = $request->input('type');
+            $wallet->status = $request->input('status');
+
+            // Save the wallet transaction to the database
+            $wallet->save();
+
+            $transaction = [
+                'user' => $request->input('user'),
+                'amount' => $request->input('amount'),
+                'credits' => $creditValue,
+                'type' => $request->input('type'),
+                'status' => $request->input('status')
+            ];
+
+            $wallet->transfer();
+
+            // Optionally, you can return a success response
+            return response()->json([
+                'success' => true,
+                'message' => 'amount is added into the wallet',
+                'data' => [
+                    'amount' => $wallet->amount,
+                    'credits' => $wallet->credits,
+                    'user' => $wallet->user,
+                    'type' => $wallet->type,
+                    'status' => $wallet->status,
+                ]
+            ], 201);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'failed to add amount into the wallet',
+                'error' => [
+                    'code' => $e->getCode(),
+                    'message' => $e->getMessage(),
+                    'info' =>  $e->errorInfo,
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Wallet $wallet)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Wallet $wallet)
+    {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Wallet $wallet)
+    {
+        //
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Wallet $wallet)
+    {
+        //
+    }
+}
